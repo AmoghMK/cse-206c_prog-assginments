@@ -1,5 +1,4 @@
 import collections
-import time
 
 # From https://www.asciitable.com/
 ASCII_FREQ = {
@@ -46,77 +45,90 @@ ASCII_FREQ = {
     42: 0.0001
 }
 
+# Didn't find specific frequencies for uppercase and lowercase letters. 
+# So, modifying english alphabet frequencies to get upper and lowercase frequencies.
+# for an alphabet, x with frequency, f, I am setting the lower and upper case frequency of x as 0.9f and 0.1f respectively.
 for i in range(65,91):
     ASCII_FREQ[i+32] = ASCII_FREQ[i]*0.9
     ASCII_FREQ[i] = ASCII_FREQ[i]*0.1
 
+# reading the cipher text
 with open("cipher.txt", "r") as f:
     cipher = f.read()
 
+# converting hex encoded cipher to string of ascii characters for ease of access and use.
 cipher = "".join([chr(int(cipher[i:i+2],16)) for i in range(0, len(cipher), 2)])
-# print(cipher)
-# time.sleep(2)
 
-max_sum = 0
-max_sum_key_length = 0
 
-for key_length in range(1,51):
-    sum = 0
-    for j in range(key_length):
-        subsum = 0
-        l = []
-        start = j
+# FINDING KEY LENGTH
+
+# variable to track max freq sum (E (qi)^2) and the key length we get it for. 
+max_e_qi2 = 0
+max_e_qi2_key_length = 0
+
+# iterating to key_lengths of 1 to 20.
+for key_length_iter in range(1,20):
+    e_qi2 = 0
+    # iterating for stream which is encrypted by the same key character.
+    for stream_iter in range(key_length_iter):
+        e_qi2_sub = 0
+        stream = []
+        start = stream_iter
         while start<len(cipher):
-            l.append(cipher[start])
-            start+=key_length
-        n = len(l)
-        l = collections.Counter(l)
-        for val in l.values():
+            stream.append(cipher[start])
+            start+=key_length_iter
+        n = len(stream)
+        stream = collections.Counter(stream)
+        for val in stream.values():
             freq = (val/n)
-            subsum += freq**2
-        sum += subsum/key_length
-    if sum>max_sum:
-        max_sum = sum
-        max_sum_key_length = key_length
-    print(key_length, sum)
-
-print()
-print(max_sum)
-print(max_sum_key_length)
+            e_qi2_sub += freq**2
+        e_qi2 += e_qi2_sub/key_length_iter
+    if e_qi2>max_e_qi2:
+        max_e_qi2 = e_qi2
+        max_e_qi2_key_length = key_length_iter
 
 
+#FINDING KEY
+
+# list to hold figured out key characters
 final_key = []
-for sub in range(max_sum_key_length):
-    subset = []
-    start = sub
+
+# iterating for stream which is encrypted by the same key character.
+for stream_iter in range(max_e_qi2_key_length):
+    stream = []
+    start = stream_iter
     while start < len(cipher):
-        subset.append(cipher[start])
-        start += key_length
-    n = len(subset)
-    subset = collections.Counter(subset)
-    max_freq = 0
-    max_freq_shift = None
-    for shift in range(256):
+        stream.append(cipher[start])
+        start += max_e_qi2_key_length
+    n = len(stream)
+    stream = collections.Counter(stream)
+
+    # variable to track max freq sum (E pi*(q_i+j)) and the key character we get it for. 
+    max_e_pi_qij = 0
+    max_e_pi_qij_key_char = None
+
+    # Iterating through all possible key character (0-255).
+    for possible_key_char in range(256):
         flag = True
-        freq_sum = 0
-        for key, val in subset.items():
-            if (ord(key)^shift)>128:
+        e_pi_qij = 0
+        for key, val in stream.items():
+            # if the character obtained after XORing cipher with possible_key_char is invalid (i.e ASCII value > 128), 
+            # ignore the possible_key_char as invalid and move on to the next one.
+            if (ord(key)^possible_key_char)>128:
                 flag = False
                 break
-            freq_sum += (val/n) * ASCII_FREQ.get((ord(key)^shift), 0)
-        if flag and freq_sum > max_freq:
-            max_freq = freq_sum
-            max_freq_shift = shift
-    print(sub, max_freq)
-    final_key.append(max_freq_shift)
+            e_pi_qij += (val/n) * ASCII_FREQ.get((ord(key)^possible_key_char), 0)
+        if flag and e_pi_qij > max_e_pi_qij:
+            max_e_pi_qij = e_pi_qij
+            max_e_pi_qij_key_char = possible_key_char
 
-print()
-print(final_key)
-print("".join(chr(x) for x in final_key))
+    # add the key character providing max freq sum to the final key list.
+    final_key.append(max_e_pi_qij_key_char)
 
-out = ""
+print(final_key, '\n')
+
+# use the key obtained to decrypt the ciphertext and get the plaintext.
+decrypted_plaintext = ""
 for i in range(len(cipher)):
-    out += chr(ord(cipher[i]) ^ final_key[i%max_sum_key_length])
-print()
-time.sleep(2)
-print(out)
+    decrypted_plaintext += chr(ord(cipher[i]) ^ final_key[i%max_e_qi2_key_length])
+print(decrypted_plaintext)
