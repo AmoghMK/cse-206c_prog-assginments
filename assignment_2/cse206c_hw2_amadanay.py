@@ -1,6 +1,6 @@
 import collections
 
-# From https://www.asciitable.com/
+# From https://millikeys.sourceforge.net/freqanalysis.html
 ASCII_FREQ = {
     32: 0.1874,
     69: 0.096,
